@@ -1,19 +1,125 @@
-import mongoose, { Schema, models } from "mongoose";
+import mongoose, {
+  type HydratedDocument,
+  type Model,
+  type Types,
+} from "mongoose";
 
-const GoalSchema = new Schema(
+export const GOAL_CATEGORIES = [
+  "self-development",
+  "business",
+  "family",
+  "hobby",
+  "public-affairs",
+] as const;
+
+export const PRIORITY_TYPES = [
+  "must",
+  "want",
+] as const;
+
+export const YEARLY_GOAL_STATUSES = [
+  "todo",
+  "planned",
+  "in-progress",
+  "done",
+] as const;
+
+export type GoalCategory =
+  (typeof GOAL_CATEGORIES)[number];
+
+export type GoalPriorityType =
+  (typeof PRIORITY_TYPES)[number];
+
+export type YearlyGoalStatus =
+  (typeof YEARLY_GOAL_STATUSES)[number];
+
+export type YearlyPlanning = {
+  year: number;
+  status: YearlyGoalStatus;
+  order: number;
+};
+
+export type GoalPlacement = {
+  visionBoard: boolean;
+};
+
+export type GoalOrder = {
+  brainstorm: number;
+  categorization: number;
+  priority: number;
+  vision: number;
+};
+
+export interface IGoal {
+  userId: Types.ObjectId;
+
+  title: string;
+  description: string;
+
+  category: GoalCategory | null;
+  priorityType: GoalPriorityType | null;
+
+  parentGoalId: Types.ObjectId | null;
+
+  icon: string | null;
+  color: string | null;
+
+  deadline: Date | null;
+  estimatedHours: number | null;
+  notes: string;
+
+  progress: number;
+  completed: boolean;
+  completedAt: Date | null;
+
+  placement: GoalPlacement;
+  order: GoalOrder;
+
+  planning?: {
+    year?: YearlyPlanning | null;
+  };
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type GoalDocument =
+  HydratedDocument<IGoal>;
+
+const YearlyPlanningSchema =
+  new mongoose.Schema<YearlyPlanning>(
+    {
+      year: {
+        type: Number,
+        required: true,
+        min: 1900,
+        max: 3000,
+      },
+
+      status: {
+        type: String,
+        enum: YEARLY_GOAL_STATUSES,
+        required: true,
+      },
+
+      order: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const GoalSchema = new mongoose.Schema<IGoal>(
   {
     userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
+      type: mongoose.Schema.Types.ObjectId,
       required: true,
       index: true,
-    },
-
-    parentGoalId: {
-      type: Schema.Types.ObjectId,
-      ref: "Goal",
-      default: null,
-      index: true,
+      ref: "User",
     },
 
     title: {
@@ -26,104 +132,74 @@ const GoalSchema = new Schema(
     description: {
       type: String,
       trim: true,
+      default: "",
       maxlength: 2000,
-      default: "",
-    },
-
-    icon: {
-      type: String,
-      trim: true,
-      maxlength: 10,
-      default: "🎯",
-    },
-    
-    color: {
-      type: String,
-      trim: true,
-      default: "#18181b",
-    },
-    
-    deadline: {
-      type: Date,
-      default: null,
-    },
-    
-    estimatedHours: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    
-    notes: {
-      type: String,
-      maxlength: 10000,
-      default: "",
-    },
-    
-    progress: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: 0,
-    },
-
-    level: {
-      type: String,
-      enum: ["lifetime", "yearly", "monthly", "daily"],
-      default: "lifetime",
-      index: true,
     },
 
     category: {
       type: String,
       enum: [
-        "self-development",
-        "business-work",
-        "family",
-        "hobby-personal",
-        "public-affairs",
+        ...GOAL_CATEGORIES,
+        null,
       ],
       default: null,
+      index: true,
     },
 
     priorityType: {
       type: String,
-      enum: ["must", "want"],
+      enum: [
+        ...PRIORITY_TYPES,
+        null,
+      ],
+      default: null,
+      index: true,
+    },
+
+    parentGoalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Goal",
+      default: null,
+      index: true,
+    },
+
+    icon: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 20,
+    },
+
+    color: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 30,
+    },
+
+    deadline: {
+      type: Date,
       default: null,
     },
 
-    placement: {
-      visionBoard: { type: Boolean, default: false },
-      yearlyKanban: { type: Boolean, default: false },
-      monthlyKanban: { type: Boolean, default: false },
-      dailyKanban: { type: Boolean, default: false },
+    estimatedHours: {
+      type: Number,
+      default: null,
+      min: 0,
     },
 
-    kanbanStatus: {
-      yearly: {
-        type: String,
-        enum: ["todo", "planned", "done", null],
-        default: null,
-      },
-      monthly: {
-        type: String,
-        enum: ["todo", "planned", "in-progress", "today", "done", null],
-        default: null,
-      },
-      daily: {
-        type: String,
-        enum: ["todo", "in-progress", "done", null],
-        default: null,
-      },
+    notes: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 10000,
     },
 
-    order: {
-      brainstorm: { type: Number, default: 0 },
-      category: { type: Number, default: 0 },
-      vision: { type: Number, default: 0 },
-      yearly: { type: Number, default: 0 },
-      monthly: { type: Number, default: 0 },
-      daily: { type: Number, default: 0 },
+    progress: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
     },
 
     completed: {
@@ -136,8 +212,99 @@ const GoalSchema = new Schema(
       type: Date,
       default: null,
     },
+
+    placement: {
+      visionBoard: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
+    order: {
+      brainstorm: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+
+      categorization: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+
+      priority: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+
+      vision: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+    },
+
+    planning: {
+      year: {
+        type: YearlyPlanningSchema,
+        required: false,
+        default: undefined,
+      },
+    },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
 
-export const Goal = models.Goal || mongoose.model("Goal", GoalSchema);
+GoalSchema.index({
+  userId: 1,
+  parentGoalId: 1,
+});
+
+GoalSchema.index({
+  userId: 1,
+  category: 1,
+});
+
+GoalSchema.index({
+  userId: 1,
+  priorityType: 1,
+});
+
+GoalSchema.index({
+  userId: 1,
+  "placement.visionBoard": 1,
+});
+
+GoalSchema.index({
+  userId: 1,
+  "planning.year.year": 1,
+  "planning.year.status": 1,
+  "planning.year.order": 1,
+});
+
+GoalSchema.pre("validate", function validateCompletion() {
+  if (this.completed) {
+    this.progress = 100;
+
+    if (!this.completedAt) {
+      this.completedAt = new Date();
+    }
+
+    return;
+  }
+
+  if (this.progress < 100) {
+    this.completedAt = null;
+  }
+});
+
+export const Goal: Model<IGoal> =
+  mongoose.models.Goal ??
+  mongoose.model<IGoal>(
+    "Goal",
+    GoalSchema,
+  );
