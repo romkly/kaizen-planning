@@ -18,13 +18,17 @@ import {
 
 import {
   removeGoalFromYear,
-  updateYearlyPlanning,
+  saveYearlyGoalPositions,
 } from "@/server/actions/yearly-planning-actions";
 
 import type {
   GoalItem,
   YearlyGoalStatus,
 } from "@/validators/goal";
+
+import {
+  arrayMove,
+} from "@dnd-kit/sortable";
 
 import { YearlyGoalCard } from "./YearlyGoalCard";
 import { YearlyKanbanColumn } from "./YearlyKanbanColumn";
@@ -168,32 +172,115 @@ export function YearlyKanban({
     );
   }
 
+  function getGoalIdFromDragId(id: string) {
+    return id.replace(/^year:/, "").replace(
+      /^vision:/,
+      "",
+    );
+  }
+  
+  function getColumnGoals(
+    currentGoals: GoalItem[],
+    status: YearlyGoalStatus,
+  ) {
+    return currentGoals
+      .filter(
+        (goal) =>
+          goal.planning?.year?.year === selectedYear &&
+          goal.planning?.year?.status === status,
+      )
+      .sort(
+        (firstGoal, secondGoal) =>
+          (firstGoal.planning?.year?.order ?? 0) -
+          (secondGoal.planning?.year?.order ?? 0),
+      );
+  }
+  
+  function normalizeYearlyOrders(
+    currentGoals: GoalItem[],
+  ) {
+    const normalizedGoals = [...currentGoals];
+  
+    for (const column of columns) {
+      const columnGoals = getColumnGoals(
+        normalizedGoals,
+        column.status,
+      );
+  
+      columnGoals.forEach((columnGoal, index) => {
+        const goalIndex = normalizedGoals.findIndex(
+          (goal) => goal._id === columnGoal._id,
+        );
+  
+        if (goalIndex === -1) {
+          return;
+        }
+  
+        normalizedGoals[goalIndex] = {
+          ...normalizedGoals[goalIndex],
+          planning: {
+            ...normalizedGoals[goalIndex].planning,
+            year: {
+              year: selectedYear,
+              status: column.status,
+              order: index,
+            },
+          },
+        };
+      });
+    }
+  
+    return normalizedGoals;
+  }
+  
+  function createPositionUpdates(
+    currentGoals: GoalItem[],
+  ) {
+    return currentGoals
+      .filter(
+        (goal) =>
+          goal.planning?.year?.year === selectedYear &&
+          goal.planning.year,
+      )
+      .map((goal) => ({
+        goalId: goal._id,
+        year: selectedYear,
+        status: goal.planning!.year!.status,
+        order: goal.planning!.year!.order,
+      }));
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-
+  
     setActiveGoalId(null);
-
+  
     if (!over) {
       return;
     }
-
+  
     const goalId =
-      String(active.data.current?.goalId ?? "")
-        .trim();
-
-    if (!goalId) {
-      return;
-    }
-
+      String(active.data.current?.goalId ?? "") ||
+      getGoalIdFromDragId(String(active.id));
+  
+    const source =
+      active.data.current?.source as
+        | "vision"
+        | "year"
+        | undefined;
+  
     const overId = String(over.id);
-
     const previousGoals = goals;
-
+  
     setError(null);
-
+  
     if (overId === "year-remove-zone") {
-      setGoals((currentGoals) =>
-        currentGoals.map((goal) =>
+      if (source !== "year") {
+        return;
+      }
+  
+      const updatedGoals = normalizeYearlyOrders(
+        goals.map((goal) =>
           goal._id === goalId
             ? {
                 ...goal,
@@ -205,85 +292,159 @@ export function YearlyKanban({
             : goal,
         ),
       );
-
+  
+      setGoals(updatedGoals);
+  
       startTransition(async () => {
-        const result =
+        const removeResult =
           await removeGoalFromYear(goalId);
-
-        if (!result.success) {
+  
+        if (!removeResult.success) {
           setGoals(previousGoals);
           setError(
-            result.error ??
+            removeResult.error ??
               "Failed to remove goal from year",
           );
           return;
         }
-
+  
+        const saveResult =
+          await saveYearlyGoalPositions(
+            createPositionUpdates(updatedGoals),
+          );
+  
+        if (!saveResult.success) {
+          setGoals(previousGoals);
+          setError(
+            saveResult.error ??
+              "Failed to update yearly order",
+          );
+          return;
+        }
+  
         if (!isDemoMode) {
           router.refresh();
         }
       });
-
+  
       return;
     }
-
-    if (!overId.startsWith("year-column:")) {
-      return;
+  
+    let targetStatus: YearlyGoalStatus | null = null;
+    let targetGoalId: string | null = null;
+  
+    if (overId.startsWith("year-column:")) {
+      targetStatus = overId.replace(
+        "year-column:",
+        "",
+      ) as YearlyGoalStatus;
     }
-
-    const status = overId.replace(
-      "year-column:",
-      "",
-    ) as YearlyGoalStatus;
-
-    if (
-      ![
-        "todo",
-        "planned",
-        "in-progress",
-        "done",
-      ].includes(status)
-    ) {
-      return;
-    }
-
-    const columnGoals = goals.filter(
-      (goal) =>
-        goal.planning?.year?.year ===
-          selectedYear &&
-        goal.planning?.year?.status === status,
-    );
-
-    const order = columnGoals.length;
-
-    setGoals((currentGoals) =>
-      currentGoals.map((goal) =>
-        goal._id === goalId
-          ? {
-              ...goal,
-              planning: {
-                ...goal.planning,
-                year: {
-                  year: selectedYear,
-                  status,
-                  order,
-                },
-              },
-            }
-          : goal,
-      ),
-    );
-
-    startTransition(async () => {
-      const result = await updateYearlyPlanning(
-        goalId,
-        {
-          year: selectedYear,
-          status,
-          order,
-        },
+  
+    if (overId.startsWith("year:")) {
+      targetGoalId = getGoalIdFromDragId(overId);
+  
+      const targetGoal = goals.find(
+        (goal) => goal._id === targetGoalId,
       );
-
+  
+      targetStatus =
+        targetGoal?.planning?.year?.status ?? null;
+    }
+  
+    if (!targetStatus) {
+      return;
+    }
+  
+    const validStatuses: YearlyGoalStatus[] = [
+      "todo",
+      "planned",
+      "in-progress",
+      "done",
+    ];
+  
+    if (!validStatuses.includes(targetStatus)) {
+      return;
+    }
+  
+    let updatedGoals = goals.map((goal) => {
+      if (goal._id !== goalId) {
+        return goal;
+      }
+  
+      return {
+        ...goal,
+        planning: {
+          ...goal.planning,
+          year: {
+            year: selectedYear,
+            status: targetStatus,
+            order: 0,
+          },
+        },
+      };
+    });
+  
+    const targetColumnGoals = getColumnGoals(
+      updatedGoals,
+      targetStatus,
+    );
+  
+    const oldIndex = targetColumnGoals.findIndex(
+      (goal) => goal._id === goalId,
+    );
+  
+    const targetIndex = targetGoalId
+      ? targetColumnGoals.findIndex(
+          (goal) => goal._id === targetGoalId,
+        )
+      : targetColumnGoals.length - 1;
+  
+    if (
+      oldIndex !== -1 &&
+      targetIndex !== -1 &&
+      oldIndex !== targetIndex
+    ) {
+      const reorderedColumn = arrayMove(
+        targetColumnGoals,
+        oldIndex,
+        targetIndex,
+      );
+  
+      updatedGoals = updatedGoals.map((goal) => {
+        const reorderedIndex =
+          reorderedColumn.findIndex(
+            (columnGoal) =>
+              columnGoal._id === goal._id,
+          );
+  
+        if (reorderedIndex === -1) {
+          return goal;
+        }
+  
+        return {
+          ...goal,
+          planning: {
+            ...goal.planning,
+            year: {
+              year: selectedYear,
+              status: targetStatus,
+              order: reorderedIndex,
+            },
+          },
+        };
+      });
+    }
+  
+    updatedGoals =
+      normalizeYearlyOrders(updatedGoals);
+  
+    setGoals(updatedGoals);
+  
+    startTransition(async () => {
+      const result = await saveYearlyGoalPositions(
+        createPositionUpdates(updatedGoals),
+      );
+  
       if (!result.success) {
         setGoals(previousGoals);
         setError(
@@ -292,7 +453,7 @@ export function YearlyKanban({
         );
         return;
       }
-
+  
       if (!isDemoMode) {
         router.refresh();
       }
@@ -399,6 +560,7 @@ export function YearlyKanban({
             <YearlyGoalCard
               goal={activeGoal}
               source="year"
+              overlay
             />
           </div>
         ) : null}

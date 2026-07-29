@@ -1,6 +1,10 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 
 import type {
   GoalItem,
@@ -22,16 +26,17 @@ export function YearlyKanbanColumn({
   description,
   goals,
 }: YearlyKanbanColumnProps) {
-  const {
-    setNodeRef,
-    isOver,
-  } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: `year-column:${status}`,
     data: {
       type: "year-column",
       status,
     },
   });
+
+  const sortableIds = goals.map(
+    (goal) => `year:${goal._id}`,
+  );
 
   return (
     <section
@@ -61,31 +66,37 @@ export function YearlyKanbanColumn({
         </p>
       </header>
 
-      <div className="space-y-3">
-        {goals.map((goal) => (
-          <YearlyGoalCard
-            key={goal._id}
-            goal={goal}
-            source="year"
-          />
-        ))}
+      <SortableContext
+        items={sortableIds}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="space-y-3">
+          {goals.map((goal) => (
+            <YearlyGoalCard
+              key={goal._id}
+              goal={goal}
+              source="year"
+            />
+          ))}
 
-        {goals.length === 0 ? (
-          <div
-            className={`
-              flex min-h-32 items-center justify-center rounded-xl
-              border border-dashed px-4 text-center text-xs
-              ${
-                isOver
-                  ? "border-zinc-500 text-zinc-300"
-                  : "border-zinc-800 text-zinc-600"
-              }
-            `}
-          >
-            Drop goals here
-          </div>
-        ) : null}
-      </div>
+          {goals.length === 0 ? (
+            <div
+              className={`
+                flex min-h-32 items-center justify-center
+                rounded-xl border border-dashed px-4
+                text-center text-xs
+                ${
+                  isOver
+                    ? "border-zinc-500 text-zinc-300"
+                    : "border-zinc-800 text-zinc-600"
+                }
+              `}
+            >
+              Drop goals here
+            </div>
+          ) : null}
+        </div>
+      </SortableContext>
     </section>
   );
 }

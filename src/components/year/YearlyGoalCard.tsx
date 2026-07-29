@@ -1,6 +1,11 @@
 "use client";
 
-import { useDraggable } from "@dnd-kit/core";
+import {
+  useDraggable,
+} from "@dnd-kit/core";
+import {
+  useSortable,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import type { GoalItem } from "@/validators/goal";
@@ -8,30 +13,51 @@ import type { GoalItem } from "@/validators/goal";
 type YearlyGoalCardProps = {
   goal: GoalItem;
   source: "vision" | "year";
+  overlay?: boolean;
 };
 
 export function YearlyGoalCard({
   goal,
   source,
+  overlay = false,
 }: YearlyGoalCardProps) {
-  const draggableId = `${source}:${goal._id}`;
+  const sortable = useSortable({
+    id: `year:${goal._id}`,
+    disabled: source !== "year" || overlay,
+    data: {
+      type: "year-goal",
+      goalId: goal._id,
+      source,
+      status: goal.planning?.year?.status,
+    },
+  });
+
+  const draggable = useDraggable({
+    id: `vision:${goal._id}`,
+    disabled: source !== "vision" || overlay,
+    data: {
+      type: "vision-goal",
+      goalId: goal._id,
+      source,
+    },
+  });
+
+  const activeHook =
+    source === "year" ? sortable : draggable;
 
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
+    transition,
     isDragging,
-  } = useDraggable({
-    id: draggableId,
-    data: {
-      goalId: goal._id,
-      source,
-    },
-  });
+  } = activeHook;
 
   const style = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Transform.toString(transform),
+    transition:
+      source === "year" ? sortable.transition : undefined,
   };
 
   return (
@@ -41,10 +67,15 @@ export function YearlyGoalCard({
       {...attributes}
       {...listeners}
       className={`
-        cursor-grab touch-none rounded-xl border border-zinc-800
-        bg-zinc-900 p-3 transition
-        hover:border-zinc-600 active:cursor-grabbing
-        ${isDragging ? "z-50 opacity-40" : ""}
+        touch-none rounded-xl border border-zinc-800
+        bg-zinc-900 p-3 transition-colors
+        hover:border-zinc-600
+        ${
+          overlay
+            ? "cursor-grabbing shadow-2xl"
+            : "cursor-grab active:cursor-grabbing"
+        }
+        ${isDragging ? "opacity-30" : ""}
         ${goal.completed ? "opacity-70" : ""}
       `}
     >
@@ -68,7 +99,7 @@ export function YearlyGoalCard({
           <div className="mt-2 flex items-center gap-2">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800">
               <div
-                className="h-full rounded-full bg-zinc-300 transition-all"
+                className="h-full rounded-full bg-zinc-300"
                 style={{
                   width: `${goal.progress ?? 0}%`,
                 }}
@@ -80,6 +111,10 @@ export function YearlyGoalCard({
             </span>
           </div>
         </div>
+
+        <span className="select-none text-sm text-zinc-600">
+          ⋮⋮
+        </span>
       </div>
     </article>
   );

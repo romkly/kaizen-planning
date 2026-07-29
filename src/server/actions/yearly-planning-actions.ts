@@ -13,15 +13,15 @@ export type YearlyGoalStatus =
   | "in-progress"
   | "done";
 
-type UpdateYearlyPlanningInput = {
+type YearlyGoalUpdate = {
+  goalId: string;
   year: number;
   status: YearlyGoalStatus;
-  order?: number;
+  order: number;
 };
 
-export async function updateYearlyPlanning(
-  goalId: string,
-  input: UpdateYearlyPlanningInput,
+export async function saveYearlyGoalPositions(
+  updates: YearlyGoalUpdate[],
 ) {
   const session = await getServerSession(authOptions);
 
@@ -32,34 +32,56 @@ export async function updateYearlyPlanning(
     };
   }
 
-  if (!Number.isInteger(input.year)) {
+  if (updates.length === 0) {
+    return {
+      success: true as const,
+    };
+  }
+
+  const validStatuses: YearlyGoalStatus[] = [
+    "todo",
+    "planned",
+    "in-progress",
+    "done",
+  ];
+
+  const invalidUpdate = updates.some(
+    (update) =>
+      !update.goalId ||
+      !Number.isInteger(update.year) ||
+      !Number.isInteger(update.order) ||
+      update.order < 0 ||
+      !validStatuses.includes(update.status),
+  );
+
+  if (invalidUpdate) {
     return {
       success: false as const,
-      error: "Invalid year",
+      error: "Invalid yearly goal position",
     };
   }
 
   await connectToDatabase();
 
-  const goal = await Goal.findOne({
-    _id: goalId,
-    userId: session.user.id,
-  });
+  const operations = updates.map((update) => ({
+    updateOne: {
+      filter: {
+        _id: update.goalId,
+        userId: session.user.id,
+      },
+      update: {
+        $set: {
+          "planning.year": {
+            year: update.year,
+            status: update.status,
+            order: update.order,
+          },
+        },
+      },
+    },
+  }));
 
-  if (!goal) {
-    return {
-      success: false as const,
-      error: "Goal not found",
-    };
-  }
-
-  goal.set("planning.year", {
-    year: input.year,
-    status: input.status,
-    order: input.order ?? 0,
-  });
-
-  await goal.save();
+  await Goal.bulkWrite(operations);
 
   revalidatePath("/year");
 
@@ -68,7 +90,9 @@ export async function updateYearlyPlanning(
   };
 }
 
-export async function removeGoalFromYear(goalId: string) {
+export async function removeGoalFromYear(
+  goalId: string,
+) {
   if (process.env.DEMO_MODE === "true") {
     return {
       success: true as const,

@@ -15,15 +15,17 @@ export function YearVisionSource({
   goals,
   selectedYear,
 }: YearVisionSourceProps) {
-  const {
-    setNodeRef,
-    isOver,
-  } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: "year-remove-zone",
     data: {
       type: "year-remove-zone",
     },
   });
+
+  const availableGoals = goals.filter(
+    (goal) =>
+      goal.planning?.year?.year !== selectedYear,
+  );
 
   return (
     <aside
@@ -43,43 +45,24 @@ export function YearVisionSource({
         </h2>
 
         <p className="mt-1 text-xs leading-5 text-zinc-500">
-          Drag a goal into the {selectedYear} plan.
-          Drop a scheduled goal back here to remove it from
-          this year.
+          Drag a goal into the {selectedYear} plan. Drop a
+          scheduled goal back here to remove it.
         </p>
       </header>
 
       <div className="space-y-3">
-        {goals.map((goal) => {
-          const scheduledForSelectedYear =
-            goal.planning?.year?.year === selectedYear;
+        {availableGoals.map((goal) => (
+          <YearlyGoalCard
+            key={goal._id}
+            goal={goal}
+            source="vision"
+          />
+        ))}
 
-          return (
-            <div
-              key={goal._id}
-              className={
-                scheduledForSelectedYear
-                  ? "opacity-40"
-                  : ""
-              }
-            >
-              <YearlyGoalCard
-                goal={goal}
-                source="vision"
-              />
-
-              {scheduledForSelectedYear ? (
-                <p className="mt-1 px-1 text-[11px] text-zinc-600">
-                  Already scheduled for {selectedYear}
-                </p>
-              ) : null}
-            </div>
-          );
-        })}
-
-        {goals.length === 0 ? (
+        {availableGoals.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-10 text-center text-xs text-zinc-600">
-            Add goals to the Vision Board first.
+            All available Vision goals are already scheduled
+            for {selectedYear}.
           </div>
         ) : null}
       </div>
