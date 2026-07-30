@@ -627,12 +627,8 @@ export function YearlyKanban({
       <div className="space-y-6">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-zinc-500">
-              Yearly planning
-            </p>
-
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-zinc-100">
-              Year {selectedYear}
+              {selectedYear} plan
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">

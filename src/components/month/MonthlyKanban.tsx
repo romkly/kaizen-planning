@@ -655,10 +655,7 @@ export function MonthlyKanban({
       <div className="space-y-6">
         <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <p className="text-sm font-medium text-zinc-500">
-              Monthly planning
-            </p>
-
+            
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-zinc-100">
               {monthNames[selectedMonth]}{" "}
               {selectedYear}
