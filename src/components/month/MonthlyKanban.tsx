@@ -19,38 +19,39 @@ import {
 } from "react";
 
 import {
-  removeGoalFromYear,
-  saveYearlyGoalPositions,
-} from "@/server/actions/yearly-planning-actions";
+  removeGoalFromMonth,
+  saveMonthlyGoalPositions,
+} from "@/server/actions/monthly-planning-actions";
 
 import type {
   GoalItem,
-  YearlyGoalStatus,
+  MonthlyGoalStatus,
 } from "@/validators/goal";
 
-import { YearlyGoalCard } from "./YearlyGoalCard";
-import { YearlyKanbanColumn } from "./YearlyKanbanColumn";
-import { YearVisionSource } from "./YearVisionSource";
+import { MonthlyGoalCard } from "./MonthlyGoalCard";
+import { MonthlyKanbanColumn } from "./MonthlyKanbanColumn";
+import { MonthlyYearSource } from "./MonthlyYearSource";
 
-type YearlyKanbanProps = {
+type MonthlyKanbanProps = {
   initialGoals: GoalItem[];
   initialYear: number;
+  initialMonth: number;
 };
 
 const columns: Array<{
-  status: YearlyGoalStatus;
+  status: MonthlyGoalStatus;
   title: string;
   description: string;
 }> = [
   {
     status: "todo",
     title: "To Do",
-    description: "Goals you may work on this year.",
+    description: "Goals available for this month.",
   },
   {
     status: "planned",
     title: "Planned",
-    description: "Goals committed to the yearly plan.",
+    description: "Goals committed to the monthly plan.",
   },
   {
     status: "in-progress",
@@ -58,23 +59,45 @@ const columns: Array<{
     description: "Goals currently receiving active work.",
   },
   {
+    status: "today",
+    title: "Today",
+    description: "Goals that need attention today.",
+  },
+  {
     status: "done",
     title: "Done",
-    description: "Goals completed during this year.",
+    description: "Goals completed during this month.",
   },
 ];
 
-const validStatuses: YearlyGoalStatus[] = [
+const validStatuses: MonthlyGoalStatus[] = [
   "todo",
   "planned",
   "in-progress",
+  "today",
   "done",
 ];
 
-export function YearlyKanban({
+const monthNames = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+export function MonthlyKanban({
   initialGoals,
   initialYear,
-}: YearlyKanbanProps) {
+  initialMonth,
+}: MonthlyKanbanProps) {
   const router = useRouter();
 
   const isDemoMode =
@@ -85,6 +108,9 @@ export function YearlyKanban({
 
   const [selectedYear, setSelectedYear] =
     useState(initialYear);
+
+  const [selectedMonth, setSelectedMonth] =
+    useState(initialMonth);
 
   const [activeGoalId, setActiveGoalId] =
     useState<string | null>(null);
@@ -101,58 +127,8 @@ export function YearlyKanban({
   );
 
   useEffect(() => {
-    if (!isDemoMode) {
-      setGoals(initialGoals);
-    }
-  }, [initialGoals, isDemoMode]);
-
-  useEffect(() => {
-    if (!isDemoMode) {
-      return;
-    }
-
-    const storedGoals = localStorage.getItem(
-      "kaizen-demo-goals",
-    );
-
-    if (!storedGoals) {
-      return;
-    }
-
-    try {
-      const parsedGoals = JSON.parse(
-        storedGoals,
-      ) as GoalItem[];
-
-      setGoals(parsedGoals);
-    } catch {
-      localStorage.removeItem(
-        "kaizen-demo-goals",
-      );
-    }
-  }, [isDemoMode]);
-
-  useEffect(() => {
-    if (!isDemoMode) {
-      return;
-    }
-
-    localStorage.setItem(
-      "kaizen-demo-goals",
-      JSON.stringify(goals),
-    );
-  }, [goals, isDemoMode]);
-
-  const visionGoals = useMemo(
-    () =>
-      goals.filter(
-        (goal) =>
-          goal.category !== null &&
-          goal.priorityType !== null &&
-          goal.placement?.visionBoard !== false,
-      ),
-    [goals],
-  );
+    setGoals(initialGoals);
+  }, [initialGoals]);
 
   const yearlyGoals = useMemo(
     () =>
@@ -163,6 +139,16 @@ export function YearlyKanban({
     [goals, selectedYear],
   );
 
+  const monthlyGoals = useMemo(
+    () =>
+      goals.filter(
+        (goal) =>
+          goal.planning?.month?.year === selectedYear &&
+          goal.planning?.month?.month === selectedMonth,
+      ),
+    [goals, selectedYear, selectedMonth],
+  );
+
   const activeGoal = useMemo(
     () =>
       goals.find(
@@ -171,38 +157,31 @@ export function YearlyKanban({
     [goals, activeGoalId],
   );
 
-  function changeYear(amount: number) {
-    setSelectedYear(
-      (currentYear) => currentYear + amount,
-    );
-
-    setError(null);
-  }
-
   function getGoalIdFromDragId(id: string) {
     return id
-      .replace(/^year:/, "")
-      .replace(/^vision:/, "");
+      .replace(/^month:/, "")
+      .replace(/^year-source:/, "");
   }
 
   function getColumnGoals(
     currentGoals: GoalItem[],
-    status: YearlyGoalStatus,
+    status: MonthlyGoalStatus,
   ) {
     return currentGoals
       .filter(
         (goal) =>
-          goal.planning?.year?.year === selectedYear &&
-          goal.planning?.year?.status === status,
+          goal.planning?.month?.year === selectedYear &&
+          goal.planning?.month?.month === selectedMonth &&
+          goal.planning?.month?.status === status,
       )
       .sort(
         (firstGoal, secondGoal) =>
-          (firstGoal.planning?.year?.order ?? 0) -
-          (secondGoal.planning?.year?.order ?? 0),
+          (firstGoal.planning?.month?.order ?? 0) -
+          (secondGoal.planning?.month?.order ?? 0),
       );
   }
 
-  function normalizeYearlyOrders(
+  function normalizeMonthlyOrders(
     currentGoals: GoalItem[],
   ) {
     let normalizedGoals = [...currentGoals];
@@ -234,8 +213,9 @@ export function YearlyKanban({
             ...goal,
             planning: {
               ...goal.planning,
-              year: {
+              month: {
                 year: selectedYear,
+                month: selectedMonth,
                 status: column.status,
                 order: newOrder,
               },
@@ -254,16 +234,45 @@ export function YearlyKanban({
     return currentGoals
       .filter(
         (goal) =>
-          goal.planning?.year?.year === selectedYear &&
-          goal.planning?.year !== null &&
-          goal.planning?.year !== undefined,
+          goal.planning?.month?.year === selectedYear &&
+          goal.planning?.month?.month === selectedMonth &&
+          goal.planning?.month !== null &&
+          goal.planning?.month !== undefined,
       )
       .map((goal) => ({
         goalId: goal._id,
         year: selectedYear,
-        status: goal.planning!.year!.status,
-        order: goal.planning!.year!.order,
+        month: selectedMonth,
+        status: goal.planning!.month!.status,
+        order: goal.planning!.month!.order,
       }));
+  }
+
+  function changeMonth(amount: number) {
+    let nextMonth = selectedMonth + amount;
+    let nextYear = selectedYear;
+
+    if (nextMonth < 0) {
+      nextMonth = 11;
+      nextYear -= 1;
+    }
+
+    if (nextMonth > 11) {
+      nextMonth = 0;
+      nextYear += 1;
+    }
+
+    setSelectedMonth(nextMonth);
+    setSelectedYear(nextYear);
+    setError(null);
+  }
+
+  function changeYear(amount: number) {
+    setSelectedYear(
+      (currentYear) => currentYear + amount,
+    );
+
+    setError(null);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -287,8 +296,8 @@ export function YearlyKanban({
 
     const source =
       active.data.current?.source as
-        | "vision"
         | "year"
+        | "month"
         | undefined;
 
     const overId = String(over.id);
@@ -297,46 +306,46 @@ export function YearlyKanban({
     setError(null);
 
     /*
-     * Remove a scheduled goal from the selected year.
+     * Remove a goal from the selected month.
      */
-    if (overId === "year-remove-zone") {
-      if (source !== "year") {
+    if (overId === "month-remove-zone") {
+      if (source !== "month") {
         return;
       }
 
-      const goalsWithoutYear = goals.map(
+      const goalsWithoutMonth = goals.map(
         (goal) =>
           goal._id === goalId
             ? {
                 ...goal,
                 planning: {
                   ...goal.planning,
-                  year: null,
+                  month: null,
                 },
               }
             : goal,
       );
 
       const updatedGoals =
-        normalizeYearlyOrders(goalsWithoutYear);
+        normalizeMonthlyOrders(goalsWithoutMonth);
 
       setGoals(updatedGoals);
 
       startTransition(async () => {
         const removeResult =
-          await removeGoalFromYear(goalId);
+          await removeGoalFromMonth(goalId);
 
         if (!removeResult.success) {
           setGoals(previousGoals);
           setError(
             removeResult.error ??
-              "Failed to remove goal from year",
+              "Failed to remove goal from month",
           );
           return;
         }
 
         const saveResult =
-          await saveYearlyGoalPositions(
+          await saveMonthlyGoalPositions(
             createPositionUpdates(updatedGoals),
           );
 
@@ -344,7 +353,7 @@ export function YearlyKanban({
           setGoals(previousGoals);
           setError(
             saveResult.error ??
-              "Failed to update yearly order",
+              "Failed to update monthly order",
           );
           return;
         }
@@ -358,7 +367,7 @@ export function YearlyKanban({
     }
 
     let targetStatus:
-      | YearlyGoalStatus
+      | MonthlyGoalStatus
       | null = null;
 
     let targetGoalId: string | null = null;
@@ -366,11 +375,11 @@ export function YearlyKanban({
     /*
      * Dropped directly onto a column.
      */
-    if (overId.startsWith("year-column:")) {
+    if (overId.startsWith("month-column:")) {
       const possibleStatus = overId.replace(
-        "year-column:",
+        "month-column:",
         "",
-      ) as YearlyGoalStatus;
+      ) as MonthlyGoalStatus;
 
       if (validStatuses.includes(possibleStatus)) {
         targetStatus = possibleStatus;
@@ -378,9 +387,9 @@ export function YearlyKanban({
     }
 
     /*
-     * Dropped onto another goal card.
+     * Dropped onto another monthly goal.
      */
-    if (overId.startsWith("year:")) {
+    if (overId.startsWith("month:")) {
       targetGoalId =
         getGoalIdFromDragId(overId);
 
@@ -389,7 +398,7 @@ export function YearlyKanban({
       );
 
       const possibleStatus =
-        targetGoal?.planning?.year?.status;
+        targetGoal?.planning?.month?.status;
 
       if (
         possibleStatus &&
@@ -413,16 +422,31 @@ export function YearlyKanban({
       return;
     }
 
+    /*
+     * A goal can only be scheduled for a month belonging
+     * to the same year as its yearly plan.
+     */
+    if (
+      draggedGoal.planning?.year?.year !== selectedYear
+    ) {
+      setError(
+        "This goal is not assigned to the selected yearly plan.",
+      );
+      return;
+    }
+
     const sourceStatus =
-      draggedGoal.planning?.year?.year ===
-      selectedYear
-        ? draggedGoal.planning.year.status
+      draggedGoal.planning?.month?.year ===
+        selectedYear &&
+      draggedGoal.planning?.month?.month ===
+        selectedMonth
+        ? draggedGoal.planning.month.status
         : null;
 
     let updatedGoals = [...goals];
 
     /*
-     * Reorder within the same column.
+     * Reorder inside the same monthly column.
      */
     if (
       sourceStatus === confirmedTargetStatus &&
@@ -476,8 +500,9 @@ export function YearlyKanban({
           ...goal,
           planning: {
             ...goal.planning,
-            year: {
+            month: {
               year: selectedYear,
+              month: selectedMonth,
               status: confirmedTargetStatus,
               order: newOrder,
             },
@@ -486,7 +511,7 @@ export function YearlyKanban({
       });
     } else {
       /*
-       * Move from Vision or from another column.
+       * Move from the yearly source or another monthly column.
        */
       const targetColumnGoals = getColumnGoals(
         goals,
@@ -512,8 +537,9 @@ export function YearlyKanban({
         ...draggedGoal,
         planning: {
           ...draggedGoal.planning,
-          year: {
+          month: {
             year: selectedYear,
+            month: selectedMonth,
             status: confirmedTargetStatus,
             order: insertionIndex,
           },
@@ -546,8 +572,9 @@ export function YearlyKanban({
             ...movedGoal,
             planning: {
               ...movedGoal.planning,
-              year: {
+              month: {
                 year: selectedYear,
+                month: selectedMonth,
                 status:
                   confirmedTargetStatus,
                 order:
@@ -570,8 +597,9 @@ export function YearlyKanban({
           ...goal,
           planning: {
             ...goal.planning,
-            year: {
+            month: {
               year: selectedYear,
+              month: selectedMonth,
               status:
                 confirmedTargetStatus,
               order: newTargetOrder,
@@ -581,14 +609,14 @@ export function YearlyKanban({
       });
 
       updatedGoals =
-        normalizeYearlyOrders(updatedGoals);
+        normalizeMonthlyOrders(updatedGoals);
     }
 
     setGoals(updatedGoals);
 
     startTransition(async () => {
       const result =
-        await saveYearlyGoalPositions(
+        await saveMonthlyGoalPositions(
           createPositionUpdates(updatedGoals),
         );
 
@@ -596,7 +624,7 @@ export function YearlyKanban({
         setGoals(previousGoals);
         setError(
           result.error ??
-            "Failed to update yearly plan",
+            "Failed to update monthly plan",
         );
         return;
       }
@@ -625,42 +653,71 @@ export function YearlyKanban({
       onDragEnd={handleDragEnd}
     >
       <div className="space-y-6">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <p className="text-sm font-medium text-zinc-500">
-              Yearly planning
+              Monthly planning
             </p>
 
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-zinc-100">
-              Year {selectedYear}
+              {monthNames[selectedMonth]}{" "}
+              {selectedYear}
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
-              Choose which Vision goals deserve your
-              attention this year.
+              Select which yearly goals should receive your
+              attention during this month.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => changeYear(-1)}
-              className="rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-900"
-            >
-              ←
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => changeYear(-1)}
+                className="rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-900"
+                aria-label="Previous year"
+              >
+                −
+              </button>
 
-            <div className="min-w-24 rounded-lg border border-zinc-800 px-4 py-2 text-center text-sm font-semibold text-zinc-100">
-              {selectedYear}
+              <div className="min-w-24 rounded-lg border border-zinc-800 px-4 py-2 text-center text-sm font-semibold text-zinc-100">
+                {selectedYear}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => changeYear(1)}
+                className="rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-900"
+                aria-label="Next year"
+              >
+                +
+              </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => changeYear(1)}
-              className="rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-900"
-            >
-              →
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => changeMonth(-1)}
+                className="rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-900"
+                aria-label="Previous month"
+              >
+                ←
+              </button>
+
+              <div className="min-w-32 rounded-lg border border-zinc-800 px-4 py-2 text-center text-sm font-semibold text-zinc-100">
+                {monthNames[selectedMonth]}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => changeMonth(1)}
+                className="rounded-lg border border-zinc-800 px-3 py-2 text-sm text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-900"
+                aria-label="Next month"
+              >
+                →
+              </button>
+            </div>
           </div>
         </header>
 
@@ -671,22 +728,23 @@ export function YearlyKanban({
         ) : null}
 
         <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
-          <YearVisionSource
-            goals={visionGoals}
+          <MonthlyYearSource
+            goals={yearlyGoals}
             selectedYear={selectedYear}
+            selectedMonth={selectedMonth}
           />
 
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-5">
             {columns.map((column) => (
-              <YearlyKanbanColumn
+              <MonthlyKanbanColumn
                 key={column.status}
                 status={column.status}
                 title={column.title}
                 description={column.description}
-                goals={yearlyGoals
+                goals={monthlyGoals
                   .filter(
                     (goal) =>
-                      goal.planning?.year
+                      goal.planning?.month
                         ?.status ===
                       column.status,
                   )
@@ -696,9 +754,9 @@ export function YearlyKanban({
                       secondGoal,
                     ) =>
                       (firstGoal.planning
-                        ?.year?.order ?? 0) -
+                        ?.month?.order ?? 0) -
                       (secondGoal.planning
-                        ?.year?.order ?? 0),
+                        ?.month?.order ?? 0),
                   )}
               />
             ))}
@@ -709,9 +767,9 @@ export function YearlyKanban({
       <DragOverlay>
         {activeGoal ? (
           <div className="w-64">
-            <YearlyGoalCard
+            <MonthlyGoalCard
               goal={activeGoal}
-              source="year"
+              source="month"
               overlay
             />
           </div>

@@ -24,6 +24,14 @@ export const YEARLY_GOAL_STATUSES = [
   "done",
 ] as const;
 
+export const MONTHLY_GOAL_STATUSES = [
+  "todo",
+  "planned",
+  "in-progress",
+  "today",
+  "done",
+] as const;
+
 export type GoalCategory =
   (typeof GOAL_CATEGORIES)[number];
 
@@ -33,9 +41,19 @@ export type GoalPriorityType =
 export type YearlyGoalStatus =
   (typeof YEARLY_GOAL_STATUSES)[number];
 
+export type MonthlyGoalStatus =
+  (typeof MONTHLY_GOAL_STATUSES)[number];
+
 export type YearlyPlanning = {
   year: number;
   status: YearlyGoalStatus;
+  order: number;
+};
+
+export type MonthlyPlanning = {
+  year: number;
+  month: number;
+  status: MonthlyGoalStatus;
   order: number;
 };
 
@@ -77,6 +95,7 @@ export interface IGoal {
 
   planning?: {
     year?: YearlyPlanning | null;
+    month?: MonthlyPlanning | null;
   };
 
   createdAt: Date;
@@ -99,6 +118,40 @@ const YearlyPlanningSchema =
       status: {
         type: String,
         enum: YEARLY_GOAL_STATUSES,
+        required: true,
+      },
+
+      order: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+    },
+    {
+      _id: false,
+    },
+  );
+
+const MonthlyPlanningSchema =
+  new mongoose.Schema<MonthlyPlanning>(
+    {
+      year: {
+        type: Number,
+        required: true,
+        min: 1900,
+        max: 3000,
+      },
+
+      month: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 11,
+      },
+
+      status: {
+        type: String,
+        enum: MONTHLY_GOAL_STATUSES,
         required: true,
       },
 
@@ -252,6 +305,12 @@ const GoalSchema = new mongoose.Schema<IGoal>(
         required: false,
         default: undefined,
       },
+
+      month: {
+        type: MonthlyPlanningSchema,
+        required: false,
+        default: undefined,
+      },
     },
   },
   {
@@ -284,6 +343,14 @@ GoalSchema.index({
   "planning.year.year": 1,
   "planning.year.status": 1,
   "planning.year.order": 1,
+});
+
+GoalSchema.index({
+  userId: 1,
+  "planning.month.year": 1,
+  "planning.month.month": 1,
+  "planning.month.status": 1,
+  "planning.month.order": 1,
 });
 
 GoalSchema.pre("validate", function validateCompletion() {

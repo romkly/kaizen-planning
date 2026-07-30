@@ -6,22 +6,57 @@ export type YearlyGoalStatus =
   | "in-progress"
   | "done";
 
+export type MonthlyGoalStatus =
+  | "todo"
+  | "planned"
+  | "in-progress"
+  | "today"
+  | "done";
+
 export type GoalItem = {
   _id: string;
+
   title: string;
   description?: string;
+
   category: string | null;
   priorityType: "must" | "want" | null;
+
   parentGoalId: string | null;
-  completed: boolean;
+
+  icon?: string | null;
+  color?: string | null;
+
+  deadline?: string | null;
+  estimatedHours?: number | null;
+  notes?: string;
+
   progress: number;
-  icon?: string;
-  color?: string;
+  completed: boolean;
+  completedAt?: string | null;
+
+  placement?: {
+    visionBoard?: boolean;
+  };
+
+  order?: {
+    brainstorm?: number;
+    categorization?: number;
+    priority?: number;
+    vision?: number;
+  };
 
   planning?: {
     year?: {
       year: number;
       status: YearlyGoalStatus;
+      order: number;
+    } | null;
+
+    month?: {
+      year: number;
+      month: number;
+      status: MonthlyGoalStatus;
       order: number;
     } | null;
   };
