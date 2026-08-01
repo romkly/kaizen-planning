@@ -704,13 +704,11 @@ export function YearlyKanban({
 
       <DragOverlay>
         {activeGoal ? (
-          <div className="w-64">
-            <YearlyGoalCard
-              goal={activeGoal}
-              source="year"
-              overlay
-            />
-          </div>
+          <YearlyGoalCard
+            goal={activeGoal}
+            source="year"
+            overlay
+          />
         ) : null}
       </DragOverlay>
     </DndContext>
