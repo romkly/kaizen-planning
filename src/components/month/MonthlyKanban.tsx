@@ -126,6 +126,12 @@ export function MonthlyKanban({
     }),
   );
 
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   useEffect(() => {
     setGoals(initialGoals);
   }, [initialGoals]);
@@ -633,6 +639,14 @@ export function MonthlyKanban({
         router.refresh();
       }
     });
+  }
+
+  if (!isMounted) {
+    return (
+      <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-10 text-center text-zinc-500">
+        Loading monthly planner...
+      </div>
+    );
   }
 
   return (

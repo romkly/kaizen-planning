@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
+import { recalculateGoalAndAncestors } from "@/server/actions/goal-progress";
 
 import { authOptions } from "@/auth";
 import { connectToDatabase } from "@/lib/mongodb";
@@ -155,7 +156,49 @@ export async function saveMonthlyGoalPositions(
 
   await Goal.bulkWrite(operations);
 
+  for (const update of updates) {
+    const goal = await Goal.findOne({
+      _id: update.goalId,
+      userId: session.user.id,
+    }).select("_id completed parentGoalId");
+  
+    if (!goal) {
+      continue;
+    }
+  
+    const childCount = await Goal.countDocuments({
+      userId: session.user.id,
+      parentGoalId: update.goalId,
+    });
+  
+    // Only leaf goals can be completed manually.
+    if (childCount === 0) {
+      const completed = update.status === "done";
+  
+      await Goal.updateOne(
+        {
+          _id: update.goalId,
+          userId: session.user.id,
+        },
+        {
+          $set: {
+            completed,
+            completedAt: completed ? new Date() : null,
+            progress: completed ? 100 : 0,
+          },
+        },
+      );
+  
+      await recalculateGoalAndAncestors(
+        update.goalId,
+        session.user.id,
+      );
+    }
+  }
+  
   revalidatePath("/month");
+  revalidatePath("/year");
+  revalidatePath("/vision");
 
   return {
     success: true as const,
