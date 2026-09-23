@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
@@ -6,6 +5,7 @@ import { BrainstormGoalForm } from "@/components/goals/BrainstormGoalForm";
 import { GoalGrid } from "@/components/goals/GoalGrid";
 import { getBrainstormGoals } from "@/server/actions/get-goals";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { completeBrainstormStep } from "@/server/actions/onboarding-actions";
 
 export default async function BrainstormPage() {
   const session = await getServerSession(authOptions);
@@ -43,13 +43,14 @@ export default async function BrainstormPage() {
             Back
           </button>
 
-          <Link
-            href="/categorize"
-            className="rounded-lg border border-zinc-700 px-8 py-3 font-semibold text-white 
-            transition hover:bg-white hover:text-black"
-          >
-            Continue
-          </Link>
+          <form action={completeBrainstormStep}>
+            <button
+              type="submit"
+              className="rounded-lg border border-zinc-700 px-8 py-3 font-semibold text-white transition hover:bg-white hover:text-black"
+            >
+              Continue
+            </button>
+          </form>
         </footer>
       </section>
     </main>

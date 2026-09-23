@@ -34,6 +34,8 @@ export async function registerUser(input: unknown) {
     name,
     email,
     passwordHash,
+    onboardingStep: "brainstorm",
+    onboardingCompleted: false,
   });
 
   return {
