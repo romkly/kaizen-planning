@@ -18,9 +18,9 @@ import { updateGoalCategory } from "@/server/actions/category-actions";
 
 type GoalCategory =
   | "self-development"
-  | "business-work"
+  | "business"
   | "family"
-  | "hobby-personal"
+  | "hobby"
   | "public-affairs";
 
 type Goal = {
@@ -46,7 +46,7 @@ const categoryDefinitions: Array<{
       "Health, education, discipline, confidence and personal growth.",
   },
   {
-    id: "business-work",
+    id: "business",
     title: "Business / Work",
     description:
       "Career, income, projects, entrepreneurship and professional skills.",
@@ -58,7 +58,7 @@ const categoryDefinitions: Array<{
       "Relationships, family life, home and people close to you.",
   },
   {
-    id: "hobby-personal",
+    id: "hobby",
     title: "Hobby / Personal",
     description:
       "Travel, entertainment, creativity, hobbies and personal experiences.",

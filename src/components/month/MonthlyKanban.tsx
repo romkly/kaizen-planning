@@ -775,15 +775,13 @@ export function MonthlyKanban({
         </div>
       </div>
 
-      <DragOverlay>
+      <DragOverlay dropAnimation={null}>
         {activeGoal ? (
-          <div className="w-64">
             <MonthlyGoalCard
               goal={activeGoal}
               source="month"
               overlay
             />
-          </div>
         ) : null}
       </DragOverlay>
     </DndContext>

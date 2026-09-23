@@ -2,9 +2,9 @@ export const GOAL_LEVELS = ["lifetime", "yearly", "monthly", "daily"] as const;
 
 export const GOAL_CATEGORIES = [
   "self-development",
-  "business-work",
+  "business",
   "family",
-  "hobby-personal",
+  "hobby",
   "public-affairs",
 ] as const;
 
