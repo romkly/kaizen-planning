@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderKanban,
-  LayoutDashboard,
   ListChecks,
   Menu,
   Moon,
@@ -18,55 +17,68 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import {
+  canAccessStep,
+  type OnboardingStep,
+} from "@/lib/onboarding";
+
 type NavigationItem = {
   label: string;
   href: string;
+  step: OnboardingStep;
+
   icon: React.ComponentType<{
     className?: string;
   }>;
+
   section: "foundation" | "planning";
+};
+
+type AppSidebarProps = {
+  onboardingStep: OnboardingStep;
 };
 
 const navigationItems: NavigationItem[] = [
   {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    section: "foundation",
-  },
-  {
     label: "Brainstorm",
     href: "/brainstorm",
+    step: "brainstorm",
     icon: Brain,
     section: "foundation",
   },
   {
     label: "Categories",
     href: "/categorize",
+    step: "categorize",
     icon: FolderKanban,
     section: "foundation",
   },
   {
     label: "Priorities",
     href: "/priorities",
+    step: "priorities",
     icon: ListChecks,
     section: "foundation",
   },
+
   {
     label: "Vision Board",
     href: "/vision",
+    step: "vision",
     icon: Sparkles,
     section: "planning",
   },
   {
     label: "Yearly Plan",
     href: "/year",
+    step: "year",
     icon: Target,
     section: "planning",
   },
   {
     label: "Monthly Plan",
     href: "/month",
+    step: "month",
     icon: CalendarDays,
     section: "planning",
   },
@@ -76,17 +88,15 @@ function isCurrentRoute(
   pathname: string,
   href: string,
 ) {
-  if (href === "/dashboard") {
-    return pathname === href;
-  }
-
   return (
     pathname === href ||
     pathname.startsWith(`${href}/`)
   );
 }
 
-export function AppSidebar() {
+export function AppSidebar({
+  onboardingStep,
+}: AppSidebarProps) {
   const pathname = usePathname();
 
   const [collapsed, setCollapsed] =
@@ -99,12 +109,36 @@ export function AppSidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const foundationItems = navigationItems.filter(
-    (item) => item.section === "foundation",
+  /*
+   * Only show the steps that the user has already
+   * reached during onboarding.
+   *
+   * Example:
+   *
+   * onboardingStep = "brainstorm"
+   * → Brainstorm
+   *
+   * onboardingStep = "priorities"
+   * → Brainstorm
+   * → Categories
+   * → Priorities
+   */
+  const visibleItems = navigationItems.filter(
+    (item) =>
+      canAccessStep(
+        onboardingStep,
+        item.step,
+      ),
   );
 
-  const planningItems = navigationItems.filter(
-    (item) => item.section === "planning",
+  const foundationItems = visibleItems.filter(
+    (item) =>
+      item.section === "foundation",
+  );
+
+  const planningItems = visibleItems.filter(
+    (item) =>
+      item.section === "planning",
   );
 
   function renderNavigationItem(
@@ -121,16 +155,26 @@ export function AppSidebar() {
       <Link
         key={item.href}
         href={item.href}
-        title={collapsed ? item.label : undefined}
+        title={
+          collapsed
+            ? item.label
+            : undefined
+        }
         className={`
           group flex min-h-11 items-center rounded-xl
           border px-3 text-sm font-medium transition
+
           ${
             active
               ? "border-zinc-700 bg-zinc-800 text-white"
               : "border-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
           }
-          ${collapsed ? "justify-center" : "gap-3"}
+
+          ${
+            collapsed
+              ? "justify-center"
+              : "gap-3"
+          }
         `}
       >
         <Icon className="h-5 w-5 shrink-0" />
@@ -150,6 +194,7 @@ export function AppSidebar() {
         className={`
           flex h-20 items-center border-b
           border-zinc-800 px-4
+
           ${
             collapsed
               ? "justify-center"
@@ -159,7 +204,7 @@ export function AppSidebar() {
       >
         {!collapsed ? (
           <Link
-            href="/vision"
+            href="/brainstorm"
             className="flex min-w-0 items-center gap-3"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-950">
@@ -178,7 +223,7 @@ export function AppSidebar() {
           </Link>
         ) : (
           <Link
-            href="/vision"
+            href="/brainstorm"
             title="Kaizen"
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 text-zinc-950"
           >
@@ -189,8 +234,10 @@ export function AppSidebar() {
         {!collapsed ? (
           <button
             type="button"
-            onClick={() => setMobileOpen(false)}
-            className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-900 hover:text-zinc-200 lg:hidden"
+            onClick={() =>
+              setMobileOpen(false)
+            }
+            className="rounded-lg p-2 text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-200 lg:hidden"
             aria-label="Close navigation"
           >
             <X className="h-5 w-5" />
@@ -199,43 +246,55 @@ export function AppSidebar() {
       </header>
 
       <nav className="flex-1 overflow-y-auto p-3">
-        {!collapsed ? (
-          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-600">
-            Foundation
-          </p>
+        {foundationItems.length > 0 ? (
+          <>
+            {!collapsed ? (
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-600">
+                Foundation
+              </p>
+            ) : null}
+
+            <div className="space-y-1">
+              {foundationItems.map(
+                renderNavigationItem,
+              )}
+            </div>
+          </>
         ) : null}
 
-        <div className="space-y-1">
-          {foundationItems.map(
-            renderNavigationItem,
-          )}
-        </div>
+        {planningItems.length > 0 ? (
+          <>
+            <div className="my-5 border-t border-zinc-800" />
 
-        <div className="my-5 border-t border-zinc-800" />
+            {!collapsed ? (
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-600">
+                Planning
+              </p>
+            ) : null}
 
-        {!collapsed ? (
-          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-600">
-            Planning
-          </p>
+            <div className="space-y-1">
+              {planningItems.map(
+                renderNavigationItem,
+              )}
+            </div>
+          </>
         ) : null}
-
-        <div className="space-y-1">
-          {planningItems.map(
-            renderNavigationItem,
-          )}
-        </div>
       </nav>
 
       <footer className="border-t border-zinc-800 p-3">
         <button
           type="button"
           onClick={() =>
-            setCollapsed((current) => !current)
+            setCollapsed(
+              (current) => !current,
+            )
           }
           className={`
             hidden min-h-11 w-full items-center rounded-xl
             px-3 text-sm text-zinc-500 transition
-            hover:bg-zinc-900 hover:text-zinc-200 lg:flex
+            hover:bg-zinc-900 hover:text-zinc-200
+            lg:flex
+
             ${
               collapsed
                 ? "justify-center"
@@ -253,7 +312,10 @@ export function AppSidebar() {
           ) : (
             <>
               <ChevronLeft className="h-5 w-5" />
-              <span>Collapse</span>
+
+              <span>
+                Collapse
+              </span>
             </>
           )}
         </button>
@@ -261,7 +323,10 @@ export function AppSidebar() {
         {!collapsed ? (
           <div className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2 text-xs text-zinc-600">
             <Moon className="h-4 w-4" />
-            <span>Keep improving</span>
+
+            <span>
+              Keep improving
+            </span>
           </div>
         ) : null}
       </footer>
@@ -272,7 +337,9 @@ export function AppSidebar() {
     <>
       <button
         type="button"
-        onClick={() => setMobileOpen(true)}
+        onClick={() =>
+          setMobileOpen(true)
+        }
         className="fixed left-4 top-4 z-40 flex h-11 w-11 items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950 text-zinc-200 shadow-xl lg:hidden"
         aria-label="Open navigation"
       >
@@ -283,7 +350,9 @@ export function AppSidebar() {
         <button
           type="button"
           aria-label="Close navigation overlay"
-          onClick={() => setMobileOpen(false)}
+          onClick={() =>
+            setMobileOpen(false)
+          }
           className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden"
         />
       ) : null}
@@ -291,8 +360,10 @@ export function AppSidebar() {
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 flex
-          flex-col border-r border-zinc-800 bg-zinc-950
-          transition-[width,transform] duration-200
+          flex-col border-r border-zinc-800
+          bg-zinc-950
+          transition-[width,transform]
+          duration-200
 
           ${
             collapsed
@@ -314,8 +385,14 @@ export function AppSidebar() {
 
       <div
         className={`
-          hidden transition-[width] duration-200 lg:block
-          ${collapsed ? "w-20" : "w-72"}
+          hidden transition-[width]
+          duration-200 lg:block
+
+          ${
+            collapsed
+              ? "w-20"
+              : "w-72"
+          }
         `}
       />
     </>
