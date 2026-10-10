@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
 import { authOptions } from "@/auth";
@@ -27,6 +28,12 @@ export async function completeBrainstormStep() {
       },
     },
   );
+
+  /*
+   * PlannerLayout reads onboardingStep.
+   * Force Next to fetch the updated value.
+   */
+  revalidatePath("/", "layout");
 
   redirect("/categorize");
 }
