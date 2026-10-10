@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/auth";
 import { PriorityBoard } from "@/components/goals/PriorityBoard";
 import { getPriorityGoals } from "@/server/actions/get-priority-goals";
+import { advanceOnboarding } from "@/server/actions/onboarding-actions";
 
 export default async function PrioritiesPage() {
   const session = await getServerSession(authOptions);
@@ -45,12 +46,19 @@ export default async function PrioritiesPage() {
             Back
           </Link>
 
-          <Link
-            href="/vision"
-            className="rounded-lg border border-zinc-700 px-8 py-3 font-semibold text-white transition hover:bg-white hover:text-black"
+          <form
+            action={advanceOnboarding.bind(
+              null,
+              "priorities",
+            )}
           >
-            Continue
-          </Link>
+            <button
+              type="submit"
+              className="rounded-lg border border-zinc-700 px-8 py-3 font-semibold text-white transition hover:bg-white hover:text-black"
+            >
+              Continue
+            </button>
+          </form>
         </footer>
       </section>
     </main>

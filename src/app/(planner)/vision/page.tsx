@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/auth";
 import { VisionBoard } from "@/components/goals/VisionBoard";
 import { getVisionGoals } from "@/server/actions/get-vision-goals";
+import { advanceOnboarding } from "@/server/actions/onboarding-actions";
 
 export default async function VisionPage() {
   const session = await getServerSession(authOptions);
@@ -42,13 +43,19 @@ export default async function VisionPage() {
             Back
           </Link>
 
-          <button
-            type="button"
-            disabled
-            className="cursor-not-allowed rounded-lg border border-zinc-700 px-8 py-3 font-semibold text-zinc-500 opacity-60"
+          <form
+            action={advanceOnboarding.bind(
+              null,
+              "vision",
+            )}
           >
-            Continue
-          </button>
+            <button
+              type="submit"
+              className="rounded-lg border border-zinc-700 px-8 py-3 font-semibold text-white transition hover:bg-white hover:text-black"
+            >
+              Continue to yearly planning
+            </button>
+          </form>
         </footer>
       </section>
     </main>

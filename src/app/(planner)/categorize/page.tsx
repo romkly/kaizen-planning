@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { CategorizationBoard } from "@/components/goals/CategorizationBoard";
 import { getCategorizationGoals } from "@/server/actions/get-categorization-goals";
+import { advanceOnboarding } from "@/server/actions/onboarding-actions";
 
 export default async function CategorizePage() {
   const session = await getServerSession(authOptions);
@@ -45,12 +46,19 @@ export default async function CategorizePage() {
             Back
           </Link>
 
-          <Link
-            href="/priorities"
-            className="rounded-lg border border-zinc-700 px-8 py-3 font-semibold text-white transition hover:bg-white hover:text-black"
+          <form
+            action={advanceOnboarding.bind(
+              null,
+              "categorize",
+            )}
           >
-            Continue
-          </Link>
+            <button
+              type="submit"
+              className="rounded-lg border border-zinc-700 px-8 py-3 font-semibold text-white transition hover:bg-white hover:text-black"
+            >
+              Continue
+            </button>
+          </form>
         </footer>
       </section>
     </main>
